@@ -49,7 +49,7 @@ struct PromptyView: View {
     }
 
     private var contentSize: CGSize {
-        CGSize(width: contentWidth, height: isEditing ? 520 : libraryHeight)
+        CGSize(width: contentWidth, height: isEditing ? 460 : libraryHeight)
     }
 
     private var libraryHeight: CGFloat {
