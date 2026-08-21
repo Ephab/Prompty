@@ -72,7 +72,7 @@ struct PromptyView: View {
         let promptListHeight = CGFloat(rowCount) * rowHeight
             + CGFloat(max(rowCount - 1, 0)) * rowSpacing
             + 16
-        return 133 + promptListHeight
+        return 157 + promptListHeight
     }
 
     init(
@@ -254,6 +254,7 @@ struct PromptyView: View {
             .padding(.horizontal, 18)
             .padding(.vertical, 10)
         }
+        .padding(12)
         .confirmationDialog(
             "Delete this prompt?",
             isPresented: deleteConfirmationIsPresented,
