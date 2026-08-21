@@ -14,6 +14,7 @@ struct PromptyView: View {
     let onCopy: () -> Void
     let onClose: () -> Void
     let onSettings: () -> Void
+    let onContentSizeChange: (CGSize) -> Void
 
     @State private var query = ""
     @State private var selectedID: UUID?
@@ -27,7 +28,11 @@ struct PromptyView: View {
     @State private var errorMessage: String?
     @State private var pendingDeletion: Prompt?
     @AppStorage("prompty.liquidGlassEnabled") private var liquidGlassEnabled = true
+    @AppStorage("prompty.promptLayout") private var promptLayoutValue = PromptLayout.list.rawValue
     @FocusState private var focusedField: Field?
+
+    private let contentWidth: CGFloat = 420
+    private let maximumVisiblePrompts = 6
 
     private enum Field: Hashable {
         case search
@@ -39,23 +44,62 @@ struct PromptyView: View {
 
     private var isEditing: Bool { editorID != nil }
 
+    private var promptLayout: PromptLayout {
+        PromptLayout(rawValue: promptLayoutValue) ?? .list
+    }
+
+    private var contentSize: CGSize {
+        CGSize(width: contentWidth, height: isEditing ? 520 : libraryHeight)
+    }
+
+    private var libraryHeight: CGFloat {
+        let promptCount = max(min(results.count, maximumVisiblePrompts), 1)
+        let rowCount: Int
+        let rowHeight: CGFloat
+        let rowSpacing: CGFloat
+
+        switch promptLayout {
+        case .list:
+            rowCount = promptCount
+            rowHeight = 61
+            rowSpacing = 2
+        case .grid:
+            rowCount = (promptCount + 1) / 2
+            rowHeight = 104
+            rowSpacing = 8
+        }
+
+        let promptListHeight = CGFloat(rowCount) * rowHeight
+            + CGFloat(max(rowCount - 1, 0)) * rowSpacing
+            + 16
+        return 133 + promptListHeight
+    }
+
     init(
         store: PromptStore,
         hotKeyController: HotKeyController,
         onCopy: @escaping () -> Void = { },
         onClose: @escaping () -> Void = { },
-        onSettings: @escaping () -> Void = { }
+        onSettings: @escaping () -> Void = { },
+        onContentSizeChange: @escaping (CGSize) -> Void = { _ in }
     ) {
         _store = Bindable(wrappedValue: store)
         self.hotKeyController = hotKeyController
         self.onCopy = onCopy
         self.onClose = onClose
         self.onSettings = onSettings
+        self.onContentSizeChange = onContentSizeChange
     }
 
     var body: some View {
         rootContent
-            .frame(width: 420, height: 520)
+            .frame(width: contentSize.width, height: contentSize.height)
+            .onAppear {
+                onContentSizeChange(contentSize)
+            }
+            .onChange(of: contentSize) { _, newSize in
+                onContentSizeChange(newSize)
+            }
             .onReceive(NotificationCenter.default.publisher(for: .promptyPopoverDidShow)) { _ in
                 guard !isEditing else { return }
                 query = ""
@@ -242,10 +286,24 @@ struct PromptyView: View {
     private var promptList: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 2) {
-                    ForEach(results) { prompt in
-                        promptRow(prompt)
-                            .id(prompt.id)
+                Group {
+                    if promptLayout == .grid {
+                        LazyVGrid(
+                            columns: [GridItem(.flexible()), GridItem(.flexible())],
+                            spacing: 8
+                        ) {
+                            ForEach(results) { prompt in
+                                promptRow(prompt)
+                                    .id(prompt.id)
+                            }
+                        }
+                    } else {
+                        LazyVStack(spacing: 2) {
+                            ForEach(results) { prompt in
+                                promptRow(prompt)
+                                    .id(prompt.id)
+                            }
+                        }
                     }
                 }
                 .padding(.horizontal, 10)
@@ -261,31 +319,68 @@ struct PromptyView: View {
         }
     }
 
+    @ViewBuilder
     private func promptRow(_ prompt: Prompt) -> some View {
-        HStack(spacing: 7) {
-            Button {
-                copy(prompt)
-            } label: {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(prompt.title)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
+        if promptLayout == .grid {
+            VStack(alignment: .leading, spacing: 8) {
+                promptContent(prompt)
 
-                    Text(prompt.body)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
+                HStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    promptActions(prompt)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .onHover { isHovered in
-                if isHovered { selectedID = prompt.id }
+            .padding(10)
+            .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
+            .background(
+                selectedID == prompt.id ? Color.accentColor.opacity(0.13) : .clear,
+                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+            )
+            .accessibilityElement(children: .contain)
+        } else {
+            HStack(spacing: 7) {
+                promptContent(prompt)
+                promptActions(prompt)
             }
+            .padding(.leading, 10)
+            .padding(.trailing, 6)
+            .padding(.vertical, 6)
+            .background(
+                selectedID == prompt.id ? Color.accentColor.opacity(0.13) : .clear,
+                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+            )
+            .accessibilityElement(children: .contain)
+        }
+    }
 
+    private func promptContent(_ prompt: Prompt) -> some View {
+        Button {
+            copy(prompt)
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(prompt.title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
+                Text(prompt.body)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onHover { isHovered in
+            if isHovered { selectedID = prompt.id }
+        }
+    }
+
+    private func promptActions(_ prompt: Prompt) -> some View {
+        HStack(spacing: 7) {
             Button {
                 toggleFavorite(prompt)
             } label: {
@@ -325,14 +420,6 @@ struct PromptyView: View {
             .help("Delete prompt")
             .accessibilityLabel("Delete \(prompt.title)")
         }
-        .padding(.leading, 10)
-        .padding(.trailing, 6)
-        .padding(.vertical, 6)
-        .background(
-            selectedID == prompt.id ? Color.accentColor.opacity(0.13) : .clear,
-            in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-        )
-        .accessibilityElement(children: .contain)
     }
 
     private var emptyState: some View {

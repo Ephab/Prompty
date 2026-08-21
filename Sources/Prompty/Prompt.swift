@@ -1,5 +1,21 @@
 import Foundation
 
+enum PromptLayout: String, CaseIterable, Identifiable {
+    case list
+    case grid
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .list:
+            "List"
+        case .grid:
+            "Grid"
+        }
+    }
+}
+
 struct Prompt: Identifiable, Codable, Hashable, Sendable {
     let id: UUID
     var title: String

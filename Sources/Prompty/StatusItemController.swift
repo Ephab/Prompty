@@ -23,7 +23,10 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
             hotKeyController: hotKeyController,
             onCopy: { [weak self] in self?.showCopyConfirmation() },
             onClose: { [weak self] in self?.hidePopover() },
-            onSettings: { [weak self] in self?.openSettings() }
+            onSettings: { [weak self] in self?.openSettings() },
+            onContentSizeChange: { [weak self] size in
+                self?.popover.contentSize = size
+            }
         )
         hostingController = NSHostingController(rootView: rootView)
 
@@ -103,7 +106,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
             let window = NSWindow(contentViewController: contentViewController)
             window.title = "Prompty Settings"
             window.styleMask = [.titled, .closable]
-            window.setContentSize(NSSize(width: 430, height: 300))
+            window.setContentSize(NSSize(width: 430, height: 340))
             window.center()
             window.isReleasedWhenClosed = false
             settingsWindowController = NSWindowController(window: window)

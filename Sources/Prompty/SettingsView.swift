@@ -8,6 +8,7 @@ struct SettingsView: View {
     @State private var loginError: String?
     @State private var didLoadLoginStatus = false
     @AppStorage("prompty.liquidGlassEnabled") private var liquidGlassEnabled = true
+    @AppStorage("prompty.promptLayout") private var promptLayout = PromptLayout.list.rawValue
 
     var body: some View {
         Form {
@@ -27,6 +28,15 @@ struct SettingsView: View {
 
             Section("Appearance") {
                 Toggle("Liquid Glass", isOn: $liquidGlassEnabled)
+            }
+
+            Section("Prompts") {
+                Picker("Prompt layout", selection: $promptLayout) {
+                    ForEach(PromptLayout.allCases) { layout in
+                        Text(layout.title).tag(layout.rawValue)
+                    }
+                }
+                .pickerStyle(.segmented)
             }
 
             Section("Shortcut") {
