@@ -132,6 +132,15 @@ final class HotKeyController: NSObject, ObservableObject {
         isRecording = false
     }
 
+    @discardableResult
+    func resetShortcut() -> Bool {
+        stopRecording()
+        return updateShortcut(
+            keyCode: PromptyShortcut.default.keyCode,
+            modifiers: PromptyShortcut.default.modifiers
+        )
+    }
+
     fileprivate func record(_ event: NSEvent) {
         guard isRecording else { return }
 
@@ -265,8 +274,40 @@ struct ShortcutRecorderView: NSViewRepresentable {
 
 final class PromptyShortcutRecorderNSView: NSView {
     weak var controller: HotKeyController?
+    private nonisolated(unsafe) var mouseMonitor: Any?
 
     override var acceptsFirstResponder: Bool { true }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        removeMouseMonitor()
+
+        guard window != nil else { return }
+        mouseMonitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+        ) { [weak self] event in
+            guard let self,
+                  let window = self.window,
+                  event.window === window,
+                  self.controller?.isRecording == true else {
+                return event
+            }
+
+            let point = self.convert(event.locationInWindow, from: nil)
+            if !self.bounds.contains(point) {
+                self.controller?.stopRecording()
+                window.makeFirstResponder(nil)
+                self.needsDisplay = true
+            }
+            return event
+        }
+    }
+
+    deinit {
+        if let mouseMonitor {
+            NSEvent.removeMonitor(mouseMonitor)
+        }
+    }
 
     override func mouseDown(with event: NSEvent) {
         controller?.beginRecording()
@@ -282,6 +323,18 @@ final class PromptyShortcutRecorderNSView: NSView {
     override func cancelOperation(_ sender: Any?) {
         controller?.stopRecording()
         needsDisplay = true
+    }
+
+    override func resignFirstResponder() -> Bool {
+        controller?.stopRecording()
+        return super.resignFirstResponder()
+    }
+
+    private func removeMouseMonitor() {
+        if let mouseMonitor {
+            NSEvent.removeMonitor(mouseMonitor)
+            self.mouseMonitor = nil
+        }
     }
 
     override func draw(_ dirtyRect: NSRect) {

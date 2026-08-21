@@ -59,10 +59,7 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                     Spacer()
                     Button("Reset") {
-                        _ = hotKeyController.updateShortcut(
-                            keyCode: PromptyShortcut.default.keyCode,
-                            modifiers: PromptyShortcut.default.modifiers
-                        )
+                        _ = hotKeyController.resetShortcut()
                     }
                     .buttonStyle(.link)
                     .disabled(hotKeyController.shortcut == .default)

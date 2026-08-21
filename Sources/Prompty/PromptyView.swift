@@ -337,6 +337,15 @@ struct PromptyView: View {
                 selectedID == prompt.id ? Color.accentColor.opacity(0.13) : .clear,
                 in: RoundedRectangle(cornerRadius: 10, style: .continuous)
             )
+            .overlay {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(
+                        selectedID == prompt.id
+                            ? Color.accentColor.opacity(0.45)
+                            : Color.white.opacity(0.12),
+                        lineWidth: 0.5
+                    )
+            }
             .accessibilityElement(children: .contain)
         } else {
             HStack(spacing: 7) {
@@ -350,6 +359,15 @@ struct PromptyView: View {
                 selectedID == prompt.id ? Color.accentColor.opacity(0.13) : .clear,
                 in: RoundedRectangle(cornerRadius: 10, style: .continuous)
             )
+            .overlay {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(
+                        selectedID == prompt.id
+                            ? Color.accentColor.opacity(0.45)
+                            : Color.white.opacity(0.12),
+                        lineWidth: 0.5
+                    )
+            }
             .accessibilityElement(children: .contain)
         }
     }
