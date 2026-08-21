@@ -322,53 +322,62 @@ struct PromptyView: View {
 
     @ViewBuilder
     private func promptRow(_ prompt: Prompt) -> some View {
-        if promptLayout == .grid {
-            VStack(alignment: .leading, spacing: 8) {
-                promptContent(prompt)
+        Group {
+            if promptLayout == .grid {
+                VStack(alignment: .leading, spacing: 8) {
+                    promptContent(prompt)
 
-                HStack(spacing: 0) {
-                    Spacer(minLength: 0)
+                    HStack(spacing: 0) {
+                        Spacer(minLength: 0)
+                        promptActions(prompt)
+                    }
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
+                .background(
+                    selectedID == prompt.id ? Color.accentColor.opacity(0.13) : .clear,
+                    in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(
+                            selectedID == prompt.id
+                                ? Color.accentColor.opacity(0.45)
+                                : Color.white.opacity(0.12),
+                            lineWidth: 0.5
+                        )
+                }
+                .accessibilityElement(children: .contain)
+            } else {
+                HStack(spacing: 7) {
+                    promptContent(prompt)
                     promptActions(prompt)
                 }
+                .padding(.leading, 10)
+                .padding(.trailing, 6)
+                .padding(.vertical, 6)
+                .background(
+                    selectedID == prompt.id ? Color.accentColor.opacity(0.13) : .clear,
+                    in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(
+                            selectedID == prompt.id
+                                ? Color.accentColor.opacity(0.45)
+                                : Color.white.opacity(0.12),
+                            lineWidth: 0.5
+                        )
+                }
+                .accessibilityElement(children: .contain)
             }
-            .padding(10)
-            .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
-            .background(
-                selectedID == prompt.id ? Color.accentColor.opacity(0.13) : .clear,
-                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(
-                        selectedID == prompt.id
-                            ? Color.accentColor.opacity(0.45)
-                            : Color.white.opacity(0.12),
-                        lineWidth: 0.5
-                    )
+        }
+        .onHover { isHovered in
+            if isHovered {
+                selectedID = prompt.id
+            } else if selectedID == prompt.id {
+                selectedID = nil
             }
-            .accessibilityElement(children: .contain)
-        } else {
-            HStack(spacing: 7) {
-                promptContent(prompt)
-                promptActions(prompt)
-            }
-            .padding(.leading, 10)
-            .padding(.trailing, 6)
-            .padding(.vertical, 6)
-            .background(
-                selectedID == prompt.id ? Color.accentColor.opacity(0.13) : .clear,
-                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(
-                        selectedID == prompt.id
-                            ? Color.accentColor.opacity(0.45)
-                            : Color.white.opacity(0.12),
-                        lineWidth: 0.5
-                    )
-            }
-            .accessibilityElement(children: .contain)
         }
     }
 
@@ -393,9 +402,6 @@ struct PromptyView: View {
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .onHover { isHovered in
-            if isHovered { selectedID = prompt.id }
-        }
     }
 
     private func promptActions(_ prompt: Prompt) -> some View {
