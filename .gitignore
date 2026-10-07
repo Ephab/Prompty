@@ -4,3 +4,4 @@ DerivedData/
 dist/
 .DS_Store
 xcuserdata/
+Scripts/release.sh

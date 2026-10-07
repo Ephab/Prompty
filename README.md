@@ -63,8 +63,6 @@ You need Swift 6.3+ (the Xcode Command Line Tools are enough).
 open dist/Prompty.app
 ```
 
-To publish a release, bump `CFBundleShortVersionString` in `Resources/Info.plist`, commit, then run `./Scripts/release.sh`.
-
 To regenerate the app icon, run `./Scripts/make-icon.sh`.
 
 Your prompts are stored in `~/Library/Application Support/Prompty/prompts.json`.
