@@ -7,8 +7,10 @@ struct PromptyApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
+        // Settings live on a page inside the floating panel (⌘,). SwiftUI
+        // still requires a scene, and this one is never opened.
         Settings {
-            SettingsView(hotKeyController: appDelegate.hotKeyController)
+            EmptyView()
         }
     }
 }
@@ -38,6 +40,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.statusItemController = statusItemController
         statusItemController.install()
 
+        // `open Prompty.app --args -PromptyShowOnLaunch YES` opens the library
+        // straight away, which is handy for scripts and launchers.
+        if defaults.bool(forKey: "PromptyShowOnLaunch") {
+            DispatchQueue.main.async {
+                statusItemController.showLibrary()
+            }
+        }
+
         guard !defaults.bool(forKey: onboardingKey) else { return }
         defaults.set(true, forKey: onboardingKey)
 
@@ -52,8 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func showFirstRunPrompt() {
-        statusItemController?.showPopover()
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
 
         let alert = NSAlert()
         alert.messageText = "Open Prompty at login?"
@@ -71,5 +80,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 failure.runModal()
             }
         }
+        statusItemController?.showLibrary()
     }
 }

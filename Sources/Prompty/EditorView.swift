@@ -1,147 +1,155 @@
 import SwiftUI
 
 struct EditorView: View {
-    @Binding var title: String
-    @Binding var bodyText: String
+    @Bindable var viewModel: PromptyViewModel
 
-    let isNew: Bool
-    let onChanged: (String, String) -> Void
-    let onCancel: () -> Void
-    let onDelete: (() -> Void)?
-    let storageError: String?
+    @State private var textController = PromptTextEditorController()
+    @FocusState private var titleFocused: Bool
 
-    @State private var showingDeleteConfirmation = false
-    @FocusState private var focusedField: Field?
+    private var session: EditorSession? { viewModel.editor }
+    private var isNew: Bool { session?.isNew ?? true }
+    private var bodyText: String { session?.body ?? "" }
+    private var titleText: String { session?.title ?? "" }
 
-    private enum Field: Hashable {
-        case title
-        case body
+    private var titleBinding: Binding<String> {
+        Binding(
+            get: { viewModel.editor?.title ?? "" },
+            set: { newValue in
+                guard viewModel.editor?.title != newValue else { return }
+                viewModel.editor?.title = newValue
+                viewModel.editorDidChange()
+            }
+        )
     }
 
-    private var isValid: Bool {
-        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-            !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    private var bodyBinding: Binding<String> {
+        Binding(
+            get: { viewModel.editor?.body ?? "" },
+            set: { newValue in
+                guard viewModel.editor?.body != newValue else { return }
+                viewModel.editor?.body = newValue
+                viewModel.editorDidChange()
+            }
+        )
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                Button(action: onCancel) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 13, weight: .semibold))
-                }
-                .buttonStyle(.plain)
-                .frame(width: 28, height: 28)
-                .contentShape(Rectangle())
-                .help("Back to prompts")
-                .accessibilityLabel("Back to prompts")
-
-                Text(isNew ? "New prompt" : "Edit prompt")
-                    .font(.system(.title3, design: .rounded).weight(.semibold))
-
-                Spacer(minLength: 0)
-
-                if let onDelete {
-                    Button(role: .destructive) {
-                        showingDeleteConfirmation = true
-                    } label: {
-                        Image(systemName: "trash")
-                            .font(.system(size: 13, weight: .medium))
+            ScreenHeader(
+                title: isNew ? "New Prompt" : "Edit Prompt",
+                subtitle: "Esc discards · ⌘↵ saves",
+                backHelp: "Discard Changes (Esc)",
+                onBack: viewModel.cancelEditing
+            ) {
+                HStack(spacing: 6) {
+                    if !isNew {
+                        IconButton(systemName: "trash", help: "Delete Prompt", size: 28, action: viewModel.deleteEditingPrompt)
                     }
-                    .buttonStyle(.plain)
-                    .frame(width: 28, height: 28)
-                    .contentShape(Rectangle())
-                    .help("Delete prompt")
-                    .accessibilityLabel("Delete prompt")
-                    .confirmationDialog(
-                        "Delete this prompt?",
-                        isPresented: $showingDeleteConfirmation,
-                        titleVisibility: .visible
-                    ) {
-                        Button("Delete", role: .destructive, action: onDelete)
-                        Button("Cancel", role: .cancel) { }
-                    } message: {
-                        Text("This cannot be undone.")
-                    }
+                    Button("Done", action: viewModel.finishEditing)
+                        .buttonStyle(.borderedProminent)
+                        .disabled(session?.hasContent != true)
+                        .help("Save and Close (⌘↵)")
                 }
-
-                Button("Done", action: onCancel)
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 14)
+            Divider().opacity(0.7)
 
-            Divider()
+            VStack(alignment: .leading, spacing: 0) {
+                TextField("Untitled prompt", text: titleBinding)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 17, weight: .semibold))
+                    .focused($titleFocused)
+                    .onSubmit { textController.focus() }
+                    .padding(.horizontal, 18)
+                    .padding(.top, 14)
+                    .accessibilityLabel("Title")
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    VStack(alignment: .leading, spacing: 7) {
-                        Text("Title")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-
-                        TextField("A name you will recognize", text: $title)
-                            .textFieldStyle(.roundedBorder)
-                            .focused($focusedField, equals: .title)
-                            .onChange(of: title) { _, newValue in
-                                onChanged(newValue, bodyText)
-                            }
+                Group {
+                    if titleText.trimmingCharacters(in: .whitespaces).isEmpty,
+                       !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Text("Will be saved as “\(Prompt.derivedTitle(from: bodyText))”")
+                    } else {
+                        Text(" ")
                     }
+                }
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+                .lineLimit(1)
+                .padding(.horizontal, 18)
+                .padding(.top, 2)
 
-                    VStack(alignment: .leading, spacing: 7) {
-                        Text("Prompt")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-
-                        ZStack(alignment: .topLeading) {
-                            TextEditor(text: $bodyText)
+                PromptTextEditor(text: bodyBinding, controller: textController)
+                    .padding(.horizontal, 12)
+                    .frame(maxHeight: .infinity)
+                    .overlay(alignment: .topLeading) {
+                        if bodyText.isEmpty {
+                            Text("Write or paste your prompt. Use {{name}} for anything you fill in each time.")
                                 .font(.system(size: 13))
-                                .focused($focusedField, equals: .body)
-                                .scrollContentBackground(.hidden)
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 5)
-                                .frame(minHeight: 250)
-                                .background(.quaternary.opacity(0.36), in: RoundedRectangle(cornerRadius: 9))
-                                .overlay {
-                                    RoundedRectangle(cornerRadius: 9)
-                                        .strokeBorder(.separator.opacity(0.65), lineWidth: 1)
-                                }
-                                .onChange(of: bodyText) { _, newValue in
-                                    onChanged(title, newValue)
-                                }
-
-                            if bodyText.isEmpty {
-                                Text("Write or paste the reusable prompt here")
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(.tertiary)
-                                    .padding(.leading, 12)
-                                    .padding(.top, 12)
-                                    .allowsHitTesting(false)
-                            }
+                                .foregroundStyle(.tertiary)
+                                .padding(.leading, 23)
+                                .padding(.top, 8)
+                                .padding(.trailing, 18)
+                                .allowsHitTesting(false)
                         }
                     }
+                    .accessibilityLabel("Prompt")
 
-                    if !isValid {
-                        Label("Title and prompt are both required", systemImage: "info.circle")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    if let storageError {
-                        Label(storageError, systemImage: "exclamationmark.circle")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                    }
+                if let errorMessage = viewModel.errorMessage {
+                    ErrorBanner(message: errorMessage)
                 }
-                .padding(18)
+
+                Divider().opacity(0.7)
+                footer
             }
         }
         .onAppear {
             DispatchQueue.main.async {
-                focusedField = .title
+                if titleText.isEmpty {
+                    titleFocused = true
+                } else {
+                    textController.focus()
+                }
             }
         }
-        .accessibilityElement(children: .contain)
+    }
+
+    private var footer: some View {
+        let detected = Prompt(title: titleText, body: bodyText).placeholders
+        return HStack(spacing: 8) {
+            Menu {
+                Section("Insert Variable") {
+                    ForEach(viewModel.knownVariableNames, id: \.self) { name in
+                        Button("{{\(name)}}") { textController.insert("{{\(name)}}") }
+                    }
+                }
+                Divider()
+                Button("New Variable…") {
+                    textController.insert("{{variable}}", selecting: NSRange(location: 2, length: 8))
+                }
+            } label: {
+                Label("Variable", systemImage: "curlybraces")
+                    .font(.system(size: 11.5, weight: .medium))
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .help("Insert a {{variable}} at the cursor")
+
+            if !detected.isEmpty {
+                ScrollView(.horizontal) {
+                    HStack(spacing: 5) {
+                        ForEach(detected, id: \.self) { VariableChip(name: $0) }
+                    }
+                }
+                .scrollIndicators(.never)
+            }
+
+            Spacer(minLength: 8)
+
+            Text(Formatting.size(of: bodyText))
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+                .monospacedDigit()
+        }
+        .padding(.horizontal, 14)
+        .frame(height: 38)
     }
 }

@@ -342,19 +342,22 @@ final class PromptyShortcutRecorderNSView: NSView {
         let rect = bounds.insetBy(dx: 1, dy: 1)
         let path = NSBezierPath(roundedRect: rect, xRadius: 7, yRadius: 7)
 
-        (controller.isRecording ? NSColor.controlAccentColor.withAlphaComponent(0.14) : NSColor.controlBackgroundColor)
+        // Translucent so it sits on the panel's glass like the other fields.
+        (controller.isRecording ? NSColor.controlAccentColor.withAlphaComponent(0.16) : NSColor.labelColor.withAlphaComponent(0.07))
             .setFill()
         path.fill()
 
-        (controller.isRecording ? NSColor.controlAccentColor : NSColor.separatorColor)
+        (controller.isRecording ? NSColor.controlAccentColor : NSColor.labelColor.withAlphaComponent(0.14))
             .setStroke()
-        path.lineWidth = controller.isRecording ? 1.5 : 1
+        path.lineWidth = controller.isRecording ? 1.5 : 0.5
         path.stroke()
 
         let text = controller.isRecording ? "Press a shortcut…" : controller.shortcut.displayName
         let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedSystemFont(ofSize: 13, weight: .medium),
-            .foregroundColor: NSColor.labelColor
+            .font: controller.isRecording
+                ? NSFont.systemFont(ofSize: 12, weight: .medium)
+                : NSFont.monospacedSystemFont(ofSize: 13, weight: .medium),
+            .foregroundColor: controller.isRecording ? NSColor.controlAccentColor : NSColor.labelColor
         ]
         let size = (text as NSString).size(withAttributes: attributes)
         (text as NSString).draw(
